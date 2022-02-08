@@ -14,7 +14,7 @@ def create_readme_file():
 
 
 def create_issue_body(default_branch_name):
-    """Creates the body contents of a GitHub issue"""
+    """Creates the body contents of a GitHub issue from a jinja2 template"""
     template_loader = jinja2.FileSystemLoader("./templates")
     template_env = jinja2.Environment(loader=template_loader)
     template = template_env.get_template("issue.j2")
