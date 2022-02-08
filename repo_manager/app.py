@@ -6,7 +6,7 @@ from github import Github, GithubException
 
 
 def render_template(template_name, template_args):
-    """Renders a jinja2 template using the template name and arguments passed as arguments"""
+    """Renders a jinja2 template using the template name and template arguments passed as function parameters"""
     template_loader = jinja2.FileSystemLoader("./templates")
     template_env = jinja2.Environment(loader=template_loader)
     template = template_env.get_template(template_name)
@@ -49,8 +49,12 @@ def lambda_handler(event, context):
         except GithubException as ex:
             # If no branch has been created, create a README.md file and push it to the repository
             readme_content = create_readme_file(repo_name)
-            repository.create_file("README.md", content=readme_content, message="Automatic creation of README.md file",
-                                   branch=default_branch_name)
+            repository.create_file(
+                "README.md",
+                content=readme_content,
+                message="Automatic creation of README.md file",
+                branch=default_branch_name
+            )
             default_branch = repository.get_branch(default_branch_name)
 
         if not default_branch.protected:
