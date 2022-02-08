@@ -1,130 +1,207 @@
-# repo-manager
+# GitHub Repository Manager
 
-This project contains source code and supporting files for a serverless application that you can deploy with the SAM CLI. It includes the following files and folders.
+This project demonstrates how to automatically enable branch protection in every new repository created in a [GitHub Organization](https://docs.github.com/en/organizations/collaborating-with-groups-in-organizations/about-organizations).
 
-- hello_world - Code for the application's Lambda function.
-- events - Invocation events that you can use to invoke the function.
-- tests - Unit tests for the application code. 
-- template.yaml - A template that defines the application's AWS resources.
+This is accomplished by using organization [webhooks](https://docs.github.com/en/rest/reference/orgs#webhooks) to send an HTTP POST payload to a third-party service that uses the GitHub [REST API](https://docs.github.com/en/rest) to programmatically enable protection on the default branch of the newly created repository.
 
-The application uses several AWS resources, including Lambda functions and an API Gateway API. These resources are defined in the `template.yaml` file in this project. You can update the template to add AWS resources through the same deployment process that updates your application code.
+The third-party service is implemented in python as a serverless [AWS Lambda](https://aws.amazon.com/lambda/) function.
 
-If you prefer to use an integrated development environment (IDE) to build and test your application, you can use the AWS Toolkit.  
-The AWS Toolkit is an open source plug-in for popular IDEs that uses the SAM CLI to build and deploy serverless applications on AWS. The AWS Toolkit also adds a simplified step-through debugging experience for Lambda function code. See the following links to get started.
+![](images/seq_diag.png)
 
-* [CLion](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [GoLand](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [IntelliJ](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [WebStorm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [Rider](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [PhpStorm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [PyCharm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [RubyMine](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [DataGrip](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [VS Code](https://docs.aws.amazon.com/toolkit-for-vscode/latest/userguide/welcome.html)
-* [Visual Studio](https://docs.aws.amazon.com/toolkit-for-visual-studio/latest/user-guide/welcome.html)
+:bulb: The third-party service can be implemented in any programming language and deployed to any platform as long it is able to receive events sent by the Organization webhook. You can even use [ngrok](https://ngrok.com/) or similar solutions to expose the service directly from an http server running in localhost.
 
-## Deploy the sample application
+GitHub provides the [Octokit library](https://docs.github.com/en/rest/overview/libraries) in Ruby, .Net and Javascript. [Third-party libraries](https://docs.github.com/en/rest/overview/libraries#third-party-libraries) are also available to support other languages.
 
-The Serverless Application Model Command Line Interface (SAM CLI) is an extension of the AWS CLI that adds functionality for building and testing Lambda applications. It uses Docker to run your functions in an Amazon Linux environment that matches Lambda. It can also emulate your application's build environment and API.
+This project uses the [PyGitHub](https://github.com/PyGithub/PyGithub) library to manage GitHub resources.
 
-To use the SAM CLI, you need the following tools.
+## Getting Started
 
-* SAM CLI - [Install the SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
-* [Python 3 installed](https://www.python.org/downloads/)
-* Docker - [Install Docker community edition](https://hub.docker.com/search/?type=edition&offering=community)
+These instructions will guide you on building and deploying the AWS Lambda function and configuring the GitHub organization webhook.
 
-To build and deploy your application for the first time, run the following in your shell:
+### Prerequisites
+- [GitHub](https://docs.github.com/en/get-started/signing-up-for-github/signing-up-for-a-new-github-account) personal account
+- [AWS Free Tier](https://aws.amazon.com/free/) account
+- [AWS CLI](https://aws.amazon.com/cli/)
+- [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
+- [Python 3](https://www.python.org/downloads/)
+- [Docker](https://hub.docker.com/search/?type=edition&offering=community) - For testing the AWS Lambda function locally
 
-```bash
-sam build --use-container
-sam deploy --guided
-```
+### GitHub Personal Access Token
+To enable communication between the serverless function and the GitHub API you will need to generate a GitHub personal access token.
 
-The first command will build the source of your application. The second command will package and deploy your application to AWS, with a series of prompts:
+Please follow the [documentation](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) to create one.
 
-* **Stack Name**: The name of the stack to deploy to CloudFormation. This should be unique to your account and region, and a good starting point would be something matching your project name.
-* **AWS Region**: The AWS region you want to deploy your app to.
-* **Confirm changes before deploy**: If set to yes, any change sets will be shown to you before execution for manual review. If set to no, the AWS SAM CLI will automatically deploy application changes.
-* **Allow SAM CLI IAM role creation**: Many AWS SAM templates, including this example, create AWS IAM roles required for the AWS Lambda function(s) included to access AWS services. By default, these are scoped down to minimum required permissions. To deploy an AWS CloudFormation stack which creates or modifies IAM roles, the `CAPABILITY_IAM` value for `capabilities` must be provided. If permission isn't provided through this prompt, to deploy this example you must explicitly pass `--capabilities CAPABILITY_IAM` to the `sam deploy` command.
-* **Save arguments to samconfig.toml**: If set to yes, your choices will be saved to a configuration file inside the project, so that in the future you can just re-run `sam deploy` without parameters to deploy changes to your application.
+For this example, only the **public_repo** scope is needed.
 
-You can find your API Gateway Endpoint URL in the output values displayed after deployment.
+![Personal Access Token Scopes](images/pat_scopes.png)
 
-## Use the SAM CLI to build and test locally
+:warning: Save the personal access token in a safe place, it will be used later in this guide.
 
-Build your application with the `sam build --use-container` command.
+See GitHub's documentation to learn more about [scopes](https://docs.github.com/en/developers/apps/building-oauth-apps/scopes-for-oauth-apps#available-scopes).
+### AWS Lambda
 
-```bash
-repo-manager$ sam build --use-container
-```
+#### Setup
+- [Configure the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html) and login to your account
+- Clone this repository and switch to the location where the repository was cloned
 
-The SAM CLI installs dependencies defined in `hello_world/requirements.txt`, creates a deployment package, and saves it in the `.aws-sam/build` folder.
+	```bash
+	git clone https://github.com/org-acme/repo-manager.git
+	```
+- Open the file named [template.yaml](template.yaml) in an editor and fill the environment variable named `GITHUB_ACCESS_TOKEN` with the token generated previously
+	
+	:warning: Don't commit and push this file to your repository!
+	
+	![Fill personal access token in cloud formation template](images/pat_template.png)
+	
+	This file is a [AWS CloudFormation template](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-lambda-function.html) used to create resources in AWS.
 
-Test a single function by invoking it directly with a test event. An event is a JSON document that represents the input that the function receives from the event source. Test events are included in the `events` folder in this project.
+- Save the changes to the template file
 
-Run functions locally and invoke them with the `sam local invoke` command.
+#### Building the project
 
-```bash
-repo-manager$ sam local invoke HelloWorldFunction --event events/event.json
-```
+- Open a terminal and navigate to the location where you cloned this project
+- Run the following [AWS SAM CLI command](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-build.html) to build the application
 
-The SAM CLI can also emulate your application's API. Use the `sam local start-api` to run the API locally on port 3000.
+	```bash
+	sam build
+	```
+	This command will create some resources in your AWS account to prepare the environment for deployment. For more information, please review the [AWS SAM CLI documentation.](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-command-reference.html)
 
-```bash
-repo-manager$ sam local start-api
-repo-manager$ curl http://localhost:3000/
-```
+### Deploying the project
 
-The SAM CLI reads the application template to determine the API's routes and the functions that they invoke. The `Events` property on each function's definition includes the route and method for each path.
+- In the same terminal window used in the previous step, run the following command
 
-```yaml
-      Events:
-        HelloWorld:
-          Type: Api
-          Properties:
-            Path: /hello
-            Method: get
-```
+	```bash
+	sam deploy --guided
+	```
+	This command will use the CloudFormation template from the file [template.yaml](template.yaml) to create the resources for the AWS Lambda function in your AWS account.
+	
+- After running the command you will be prompted for some information, you can use the defaults or you can use your own values if needed.
 
-## Add a resource to your application
-The application template uses AWS Serverless Application Model (AWS SAM) to define application resources. AWS SAM is an extension of AWS CloudFormation with a simpler syntax for configuring common serverless application resources such as functions, triggers, and APIs. For resources not included in [the SAM specification](https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md), you can use standard [AWS CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html) resource types.
+	```sh
+	Setting default arguments for 'sam deploy'
+		=========================================
+		Stack Name [repo-manager]:
+		AWS Region [us-east-2]:
+		#Shows you resources changes to be deployed and require a 'Y' to initiate deploy
+		Confirm changes before deploy [Y/n]:
+		#SAM needs permission to be able to create roles to connect to the resources in your template
+		Allow SAM CLI IAM role creation [Y/n]:
+		#Preserves the state of previously provisioned resources when an operation fails
+		Disable rollback [y/N]:
+		RepoManagerFunction may not have authorization defined, Is this okay? [y/N]: y
+		Save arguments to configuration file [Y/n]:
+		SAM configuration file [samconfig.toml]:
+		SAM configuration environment [default]:
+	```
+- After a few seconds, you will be asked to confirm if you want to go ahead with the deployment. 
+- After confirmation, will create the resources in your AWS account. This may take some time.
+- Once the process is finished a summary of the changes will be displayed on your terminal, make note of the API Gateway endpoint URL, it will be used to configure the GitHub Organization webhook.
+	
+	```bash
+	CloudFormation outputs from deployed stack
+	---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+	Outputs
+	---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+	Key                 RepoManagerFunctionIamRole
+	Description         Implicit IAM Role created for Repo Manager function
+	Value               arn:aws:iam::248963215099:role/repo-manager-RepoManagerFunctionRole-7VCRYYA197XM
+	
+	Key                 RepoManagerFunction
+	Description         Repo Manager Lambda Function ARN
+	Value               arn:aws:lambda:us-east-2:248963215099:function:repo-manager-RepoManagerFunction-P8s89GztRZC5
+	
+	Key                 RepoManagerApi
+	Description         API Gateway endpoint URL for Prod stage for Repo Manager function
+	Value               https://726t9vtafb.execute-api.us-east-2.amazonaws.com/Prod/webhook/
+	---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+	
+	Successfully created/updated stack - repo-manager in us-east-2
+	```
+- To validate that the deployment was successful, open your browser and navigate to the AWS Console  and go to Lambda > Functions
 
-## Fetch, tail, and filter Lambda function logs
 
-To simplify troubleshooting, SAM CLI has a command called `sam logs`. `sam logs` lets you fetch logs generated by your deployed Lambda function from the command line. In addition to printing the logs on the terminal, this command has several nifty features to help you quickly find the bug.
+	![AWS Console - Lambda Functions](images/aws_lambda_function.png)
+	
+### GitHub
 
-`NOTE`: This command works for all AWS Lambda functions; not just the ones you deploy using SAM.
+Once the application has been deployed, we are ready to configure our GitHub organization webhooks to notify the application when a new repository has been created.
 
-```bash
-repo-manager$ sam logs -n HelloWorldFunction --stack-name repo-manager --tail
-```
+- Open your browser and go to [GitHub](https://github.com)
+- If you have not created a GitHub Organization yet, [create one](https://docs.github.com/en/organizations/collaborating-with-groups-in-organizations/creating-a-new-organization-from-scratch)
+- Go to your GitHub organization settings page and select Webhooks
 
-You can find more information and examples about filtering Lambda function logs in the [SAM CLI Documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-logging.html).
+	![GitHub Organization Page](images/github_org_page.png)
 
-## Tests
+- Click on the **Add webhook** button
+- Paste the API Gateway endpoint URL provided by the SAM CLI deploy command in the **Payload URL** field
+- Select **application/json** in the **Content type** field
+- Enable SSL verification
+- Select individual events to trigger the webhook
+	- Uncheck the **Pushes** option
+	- Check the **Repositories** option 
+- Check the **Active** option
+- Click the **Add webhook** button
+	![GitHub Webhook Options](images/github_webhook_options.png)
 
-Tests are defined in the `tests` folder in this project. Use PIP to install the test dependencies and run tests.
 
-```bash
-repo-manager$ pip install -r tests/requirements.txt --user
-# unit test
-repo-manager$ python -m pytest tests/unit -v
-# integration test, requiring deploying the stack first.
-# Create the env variable AWS_SAM_STACK_NAME with the name of the stack we are testing
-repo-manager$ AWS_SAM_STACK_NAME=<stack-name> python -m pytest tests/integration -v
-```
+### Testing
 
-## Cleanup
+Once the GitHub Organization webhook is configured to deliver events to the AWS Lambda function we can go ahead and test the use case.
 
-To delete the sample application that you created, use the AWS CLI. Assuming you used your project name for the stack name, you can run the following:
+- Login to [GitHub](https://github.com) and go to your Organization page
+- Create a new repository
+	![GitHub Organization Page](images/github_org_page_new.png)
+- Type a name in the **Repository** name field
+- Make your repository **Public**
+- Click on the **Create repository** button
+	![Create new repository](images/github_new_repo.png)
+- After a few seconds reload your repository page and you should see the following:
+	- A new commit in your repository 
+	- A new README.md file created in the root of your repository.
+	- A new issue created in your repository
 
-```bash
-aws cloudformation delete-stack --stack-name repo-manager
-```
+	![New repository results](images/github_new_repo_result.png)
+	![New GitHub Issue](images/github_issue.png)
+- Go to your new repository settings, then select **branches** from the left and you should see that branch protection rules were added to your default branch
 
-## Resources
+![GitHub Repository Branch Protections](images/github_repo_branch_protection.png)
 
-See the [AWS SAM developer guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html) for an introduction to SAM specification, the SAM CLI, and serverless application concepts.
+## Troubleshooting
+- If the AWS Lambda function reports a **Not Found** error after creating a new repository, ensure that the repository was created with **Public** access. If you want to grant access to private repositories to the AWS Lambda function, adjust the [scopes](https://docs.github.com/en/developers/apps/building-oauth-apps/scopes-for-oauth-apps#available-scopes) assigned to your private access token.
 
-Next, you can use AWS Serverless Application Repository to deploy ready to use Apps that go beyond hello world samples and learn how authors developed their applications: [AWS Serverless Application Repository main page](https://aws.amazon.com/serverless/serverlessrepo/)
+	```bash
+	[ERROR] UnknownObjectException: 404 {
+	"message": "Not Found",
+	"documentation_url": "https://docs.github.com/rest/reference/repos#get-a-repository"
+	}
+	Traceback (most recent call last):
+	  File "/var/task/app.py", line 44, in lambda_handler
+	    repository = github.get_repo(repo_name)
+	  File "/var/task/github/MainClass.py", line 330, in get_repo
+	    headers, data = self.__requester.requestJsonAndCheck("GET", url)
+	  File "/var/task/github/Requester.py", line 353, in requestJsonAndCheck
+	    return self.__check(
+	  File "/var/task/github/Requester.py", line 378, in __check
+	    raise self.__createException(status, responseHeaders, output)
+	```
+
+## Contributing
+
+Please feel free to raise issues or submit pull requests to improve this project.
+
+## Authors
+
+* **Jose Mayorga** - *Initial work*
+
+See also the list of [contributors](https://github.com/org-acme/repo-manager/contributors) who participated in this project.
+
+## License
+
+See the [LICENSE.md](LICENSE.md) file for details
+
+## References / Acknowledgments
+
+* [README](https://gist.github.com/PurpleBooth/109311bb0361f32d87a2) Template by [@armakuni](https://github.com/armakuni)
+* [PyGithub](https://pygithub.readthedocs.io/en/latest/introduction.html) GitHub python client
+* [AWS Serverless Application Model](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html)
