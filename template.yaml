@@ -1,0 +1,44 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  repo-manager
+
+  GitHub Repository Manager
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 3
+
+Resources:
+  RepoManagerFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: repo_manager/
+      Handler: app.lambda_handler
+      Environment:
+        Variables:
+          GITHUB_ACCESS_TOKEN: <FILL ME>
+      Runtime: python3.9
+      Architectures:
+        - x86_64
+      Events:
+        RepoManager:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /webhook
+            Method: post
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  RepoManagerApi:
+    Description: "API Gateway endpoint URL for Prod stage for Repo Manager function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/webhook/"
+  RepoManagerFunction:
+    Description: "Repo Manager Lambda Function ARN"
+    Value: !GetAtt RepoManagerFunction.Arn
+  RepoManagerFunctionIamRole:
+    Description: "Implicit IAM Role created for Repo Manager function"
+    Value: !GetAtt RepoManagerFunctionRole.Arn

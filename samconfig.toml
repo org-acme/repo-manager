@@ -1,0 +1,11 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "repo-manager"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-17r22seplaet6"
+s3_prefix = "repo-manager"
+region = "us-east-2"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+image_repositories = []
