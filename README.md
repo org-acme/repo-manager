@@ -55,10 +55,77 @@ See GitHub's documentation to learn more about [scopes](https://docs.github.com/
 
 - Save the changes to the template file
 
-### Building the project
+#### Building the project
+
+- Open a terminal and navigate to the location where you cloned this project
+- Run the following [AWS SAM CLI command](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-build.html) to build the application
+
+	```bash
+	sam build
+	```
+	This command will create some resources in your AWS account to prepare the environment for deployment. For more information, please review the [AWS SAM CLI documentation.](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-command-reference.html)
+
+### Deploying the project
+
+- In the same terminal window used in the previous step, run the following command
+
+	```bash
+	sam deploy --guided
+	```
+	This command will use the CloudFormation template from the file [template.yaml](template.yaml) to create the resources for the AWS Lambda function in your AWS account.
+	
+- After running the command you will be prompted for some information, you can use the defaults or you can use your own values if needed.
+
+	```sh
+	Setting default arguments for 'sam deploy'
+		=========================================
+		Stack Name [repo-manager]:
+		AWS Region [us-east-2]:
+		#Shows you resources changes to be deployed and require a 'Y' to initiate deploy
+		Confirm changes before deploy [Y/n]:
+		#SAM needs permission to be able to create roles to connect to the resources in your template
+		Allow SAM CLI IAM role creation [Y/n]:
+		#Preserves the state of previously provisioned resources when an operation fails
+		Disable rollback [y/N]:
+		RepoManagerFunction may not have authorization defined, Is this okay? [y/N]: y
+		Save arguments to configuration file [Y/n]:
+		SAM configuration file [samconfig.toml]:
+		SAM configuration environment [default]:
+	```
+- After a few seconds, you will be asked to confirm if you want to go ahead with the deployment. 
+- After confirmation, will create the resources in your AWS account. This may take some time.
+- Once the process is finished a summary of the changes will be displayed on your terminal, make note of the API Gateway endpoint URL, it will be used to configure the GitHub Organization webhook.
+	
+	```bash
+	CloudFormation outputs from deployed stack
+	---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+	Outputs
+	---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+	Key                 RepoManagerFunctionIamRole
+	Description         Implicit IAM Role created for Repo Manager function
+	Value               arn:aws:iam::248963215099:role/repo-manager-RepoManagerFunctionRole-7VCRYYA197XM
+	
+	Key                 RepoManagerFunction
+	Description         Repo Manager Lambda Function ARN
+	Value               arn:aws:lambda:us-east-2:248963215099:function:repo-manager-RepoManagerFunction-P8s89GztRZC5
+	
+	Key                 RepoManagerApi
+	Description         API Gateway endpoint URL for Prod stage for Repo Manager function
+	Value               https://726t9vtafb.execute-api.us-east-2.amazonaws.com/Prod/webhook/
+	---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+	
+	Successfully created/updated stack - repo-manager in us-east-2
+	```
+- To validate that the deployment was successful, open your browser and navigate to the AWS Console  and go to Lambda > Functions
 
 
+	![AWS Console - Lambda Functions](images/aws_lambda_function.png)
+	
 ### GitHub
+
+Once the application has been deployed, we are ready to configure our GitHub organization webhooks to notify the application when a new repository has been created.
+
+
 
 ### Testing
 
