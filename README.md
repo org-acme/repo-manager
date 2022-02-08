@@ -6,6 +6,8 @@ This is accomplished by using organization [webhooks](https://docs.github.com/en
 
 The third-party service is implemented in python as a serverless [AWS Lambda](https://aws.amazon.com/lambda/) function.
 
+![](images/seq_diag.png)
+
 :bulb: The third-party service can be implemented in any programming language and deployed to any platform as long it is able to receive events sent by the Organization webhook. You can even use [ngrok](https://ngrok.com/) or similar solutions to expose the service directly from an http server running in localhost.
 
 GitHub provides the [Octokit library](https://docs.github.com/en/rest/overview/libraries) in Ruby, .Net and Javascript. [Third-party libraries](https://docs.github.com/en/rest/overview/libraries#third-party-libraries) are also available to support other languages.
@@ -145,9 +147,44 @@ Once the application has been deployed, we are ready to configure our GitHub org
 
 ### Testing
 
-Add additional notes about how to deploy this on a live system
+Once the GitHub Organization webhook is configured to deliver events to the AWS Lambda function we can go ahead and test the use case.
 
+- Login to [GitHub](https://github.com) and go to your Organization page
+- Create a new repository
+	![GitHub Organization Page](images/github_org_page_new.png)
+- Type a name in the **Repository** name field
+- Make your repository **Public**
+- Click on the **Create repository** button
+	![Create new repository](images/github_new_repo.png)
+- After a few seconds reload your repository page and you should see the following:
+	- A new commit in your repository 
+	- A new README.md file created in the root of your repository.
+	- A new issue created in your repository
 
+	![New repository results](images/github_new_repo_result.png)
+	![New GitHub Issue](images/github_issue.png)
+- Go to your new repository settings, then select **branches** from the left and you should see that branch protection rules were added to your default branch
+
+![GitHub Repository Branch Protections](images/github_repo_branch_protection.png)
+
+## Troubleshooting
+- If the AWS Lambda function reports a **Not Found** error after creating a new repository, ensure that the repository was created with **Public** access. If you want to grant access to private repositories to the AWS Lambda function, adjust the [scopes](https://docs.github.com/en/developers/apps/building-oauth-apps/scopes-for-oauth-apps#available-scopes) assigned to your private access token.
+
+	```bash
+	[ERROR] UnknownObjectException: 404 {
+	"message": "Not Found",
+	"documentation_url": "https://docs.github.com/rest/reference/repos#get-a-repository"
+	}
+	Traceback (most recent call last):
+	  File "/var/task/app.py", line 44, in lambda_handler
+	    repository = github.get_repo(repo_name)
+	  File "/var/task/github/MainClass.py", line 330, in get_repo
+	    headers, data = self.__requester.requestJsonAndCheck("GET", url)
+	  File "/var/task/github/Requester.py", line 353, in requestJsonAndCheck
+	    return self.__check(
+	  File "/var/task/github/Requester.py", line 378, in __check
+	    raise self.__createException(status, responseHeaders, output)
+	```
 
 ## Contributing
 
@@ -163,8 +200,8 @@ See also the list of [contributors](https://github.com/org-acme/repo-manager/con
 
 See the [LICENSE.md](LICENSE.md) file for details
 
-## Acknowledgments
+## References / Acknowledgments
 
-* [README](https://gist.github.com/PurpleBooth/109311bb0361f32d87a2) Template
-* [PyGithub](https://pygithub.readthedocs.io/en/latest/introduction.html)
-*
+* [README](https://gist.github.com/PurpleBooth/109311bb0361f32d87a2) Template by [@armakuni](https://github.com/armakuni)
+* [PyGithub](https://pygithub.readthedocs.io/en/latest/introduction.html) GitHub python client
+* [AWS Serverless Application Model](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html)

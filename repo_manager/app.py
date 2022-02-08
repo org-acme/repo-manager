@@ -39,7 +39,7 @@ def lambda_handler(event, context):
     # Act only on repository "created" actions, ignore the rest
     if event_action == 'created':
         repo_name = body['repository']['full_name']
-
+        print(f'Repository Name: {repo_name}')
         github = Github(access_token)
         repository = github.get_repo(repo_name)
         default_branch_name = repository.default_branch
@@ -48,6 +48,7 @@ def lambda_handler(event, context):
             default_branch = repository.get_branch(default_branch_name)
         except GithubException as ex:
             # If no branch has been created, create a README.md file and push it to the repository
+            print(f'Exception: {ex}')
             readme_content = create_readme_file(repo_name)
             repository.create_file(
                 "README.md",
