@@ -5,26 +5,29 @@ import jinja2
 from github import Github, GithubException
 
 
-def create_readme_file():
-    """Creates the contents of a README.md file from a jinja2 template"""
+def render_template(template_name, template_args):
+    """Renders a jinja2 template using the template name and arguments passed as arguments"""
     template_loader = jinja2.FileSystemLoader("./templates")
     template_env = jinja2.Environment(loader=template_loader)
-    template = template_env.get_template("README.j2")
-    return template.render()
+    template = template_env.get_template(template_name)
+    return template.render(template_args)
+
+
+def create_readme_file(repo_name):
+    """Creates the contents of a README.md file from a jinja2 template"""
+    template_args = {
+        'repo_name': repo_name
+    }
+    return render_template("README.j2", template_args)
 
 
 def create_issue_body(default_branch_name):
     """Creates the body contents of a GitHub issue from a jinja2 template"""
-    template_loader = jinja2.FileSystemLoader("./templates")
-    template_env = jinja2.Environment(loader=template_loader)
-    template = template_env.get_template("issue.j2")
-
     template_args = {
         'default_branch_name': default_branch_name,
         'branch_protections': ['Require code owner review', 'Require approving review count', 'Enforce admins']
     }
-
-    return template.render(template_args)
+    return render_template("issue.j2", template_args)
 
 
 def lambda_handler(event, context):
@@ -45,7 +48,7 @@ def lambda_handler(event, context):
             default_branch = repository.get_branch(default_branch_name)
         except GithubException as ex:
             # If no branch has been created, create a README.md file and push it to the repository
-            readme_content = create_readme_file()
+            readme_content = create_readme_file(repo_name)
             repository.create_file("README.md", content=readme_content, message="Automatic creation of README.md file",
                                    branch=default_branch_name)
             default_branch = repository.get_branch(default_branch_name)
@@ -70,8 +73,5 @@ def lambda_handler(event, context):
         }
     else:
         return {
-            "statusCode": 204,
-            "body": json.dumps({
-                "message": "Nothing to do"
-            })
+            "statusCode": 204
         }
