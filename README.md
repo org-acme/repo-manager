@@ -140,11 +140,7 @@ Once the application has been deployed, we are ready to configure our GitHub org
 	- Check the **Repositories** option 
 - Check the **Active** option
 - Click the **Add webhook** button
-	<details><summary>GitHub webhook configuration options<summary>
-	<p>
 	![GitHub Webhook Options](images/github_webhook_options.png)
-	</p>
-	</details>
 
 
 ### Testing
