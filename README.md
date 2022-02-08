@@ -125,6 +125,26 @@ See GitHub's documentation to learn more about [scopes](https://docs.github.com/
 
 Once the application has been deployed, we are ready to configure our GitHub organization webhooks to notify the application when a new repository has been created.
 
+- Open your browser and go to [GitHub](https://github.com)
+- If you have not created a GitHub Organization yet, [create one](https://docs.github.com/en/organizations/collaborating-with-groups-in-organizations/creating-a-new-organization-from-scratch)
+- Go to your GitHub organization settings page and select Webhooks
+
+	![GitHub Organization Page](images/github_org_page.png)
+
+- Click on the **Add webhook** button
+- Paste the API Gateway endpoint URL provided by the SAM CLI deploy command in the **Payload URL** field
+- Select **application/json** in the **Content type** field
+- Enable SSL verification
+- Select individual events to trigger the webhook
+	- Uncheck the **Pushes** option
+	- Check the **Repositories** option 
+- Check the **Active** option
+- Click the **Add webhook** button
+	<details><summary>GitHub webhook configuration options<summary>
+	<p>
+	![GitHub Webhook Options](images/github_webhook_options.png)
+	</p>
+	</details>
 
 
 ### Testing
